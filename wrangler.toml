@@ -1,0 +1,23 @@
+name = "journal-ai-backend"
+main = "src/worker.ts"
+compatibility_date = "2023-01-01"
+
+[vars]
+ENVIRONMENT = "development"
+
+[[kv_namespaces]]
+binding = "JOURNAL_KV"
+id = ""
+
+[durable_objects]
+bindings = [
+  { name = "TRANSCRIPTION_SOCKET", class_name = "TranscriptionSocket" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["TranscriptionSocket"]
+
+[[r2_buckets]]
+binding = 'JOURNAL_AUDIO'
+bucket_name = 'journal-audio'
