@@ -8,19 +8,43 @@ export interface TranscriptionSession {
  createdAt: string;
 }
 
+interface TranscriptionData extends TranscriptionSession {
+ transcript?: string;
+ summary?: string;
+}
+
+interface User {
+ id: string;
+ email: string;
+ name: string;
+ password: string;
+ role: 'user' | 'admin';
+ createdAt: string;
+}
+
 export class DatabaseService {
  constructor(private readonly kv: KVNamespace) {}
 
  async createUser(userData: any) {
-  const key = `user:${userData.id}`;
+  const key = `user:${userData.email}`;
   await this.kv.put(key, JSON.stringify(userData));
   return userData;
  }
 
- async getUser(id: string) {
-  const key = `user:${id}`;
+ async getUser(email: string) {
+  const key = `user:${email}`;
   const user = await this.kv.get(key);
-  return user ? JSON.parse(user) : null;
+  return user ? (JSON.parse(user) as User) : null;
+ }
+
+ async updateUser(email: string, updates: Partial<User>) {
+  const user = await this.getUser(email);
+  if (!user) return null;
+
+  const updatedUser = { ...user, ...updates };
+  const key = `user:${email}`;
+  await this.kv.put(key, JSON.stringify(updatedUser));
+  return updatedUser;
  }
 
  async createJournalEntry(userId: string, entry: any) {
@@ -28,9 +52,8 @@ export class DatabaseService {
   const key = `journal:${userId}:${entryId}`;
   const data = {
    id: entryId,
-   userId,
+   user: userId,
    ...entry,
-   createdAt: new Date().toISOString(),
   };
   await this.kv.put(key, JSON.stringify(data));
   return data;
@@ -51,7 +74,6 @@ export class DatabaseService {
    key,
    JSON.stringify({
     ...session,
-    createdAt: new Date().toISOString(),
    })
   );
   return session;
@@ -67,9 +89,12 @@ export class DatabaseService {
  }
 
  async getTranscriptionSession(
-  sessionId: string
+  sessionId: string,
+  userId: string
  ): Promise<TranscriptionSession | null> {
-  const sessions = await this.kv.list({ prefix: `transcription:${sessionId}` });
+  const sessions = await this.kv.list({
+   prefix: `transcription:${userId}:${sessionId}`,
+  });
   const session = await this.kv.get(sessions.keys[0].name);
   return session ? JSON.parse(session) : null;
  }

@@ -14,16 +14,19 @@ export const registerSchema = z.object({
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 
-export interface UserPayload {
- id: string;
- email: string;
- role: 'user' | 'admin';
-}
-
 export interface LoginResponse {
  token: string;
  user: {
   id: string;
   email: string;
+  name: string;
+ };
+}
+
+export interface RegisterResponse {
+ user: {
+  id: string;
+  email: string;
+  name: string;
  };
 }

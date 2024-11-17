@@ -1,5 +1,3 @@
-import { Env } from '../config/env';
-
 export class StorageService {
  constructor(private readonly r2: R2Bucket) {}
 

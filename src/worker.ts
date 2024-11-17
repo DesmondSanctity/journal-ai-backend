@@ -9,7 +9,7 @@ import { Env } from './config/env';
 import { Controllers } from './types/controllers';
 import { Logger } from './utils/logger.util';
 import { Monitor } from './utils/monitor.util';
-import { TranscriptionSocket } from './durable-objects/transcription.socket';
+import { TranscriptionSocketService } from './durable-objects/transcription.socket';
 
 interface Variables {
  controllers: Controllers;
@@ -48,5 +48,5 @@ app.get('/', (c) =>
  c.json({ status: 'ok', timestamp: new Date().toISOString() })
 );
 
-export { TranscriptionSocket };
+export { TranscriptionSocketService };
 export default app;

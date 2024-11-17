@@ -1,131 +1,84 @@
-import { Env } from '../config/env';
-import { AssemblyAIService } from '../services/assemblyai.service';
+import { RealtimeTranscript } from 'assemblyai';
 import { DatabaseService } from '../services/db.service';
-import { StorageService } from '../services/storage.service';
+import { AssemblyAIService } from '../services/assemblyai.service';
 
-export class TranscriptionSocket implements DurableObject {
- private sessions: Map<
-  string,
-  {
-   client: WebSocket;
-   assembly: WebSocket;
-   audioKeys: string[];
-   userId: string;
-  }
- > = new Map();
- private storage: StorageService;
- private db: DatabaseService;
- private assemblyAI: AssemblyAIService;
+interface TranscriptionChunk {
+ timestamp: number;
+ audioKeys: { key: string; timestamp: number }[];
+ transcript: string;
+ isFinal: boolean;
+}
 
- constructor(state: DurableObjectState, env: Env) {
-  this.storage = new StorageService(env.JOURNAL_AUDIO);
-  this.db = new DatabaseService(env.JOURNAL_KV);
-  this.assemblyAI = new AssemblyAIService(env);
- }
+interface TranscriptionSession {
+ transcriber: any;
+ chunks: TranscriptionChunk[];
+ audioKeys: { key: string; timestamp: number }[];
+ startTime: number;
+}
 
- async fetch(request: Request) {
-  const url = new URL(request.url);
+export class TranscriptionSocketService {
+ private sessions = new Map<string, TranscriptionSession>();
 
-  if (url.pathname === '/connect') {
-   const userId = url.searchParams.get('userId');
-   if (!userId) {
-    return new Response('User ID required', { status: 400 });
+ constructor(
+  private assemblyAI: AssemblyAIService,
+  private db: DatabaseService
+ ) {}
+
+ async startTranscription(userId: string) {
+  const transcriber = await this.assemblyAI.createRealtimeConnection();
+  const sessionId = crypto.randomUUID();
+  const startTime = Date.now();
+
+  transcriber.on('open', ({ sessionId: assemblyId }) => {
+   console.log(`Session opened with ID: ${assemblyId}`);
+  });
+
+  transcriber.on('error', (error: Error) => {
+   console.error('Transcription error:', error);
+  });
+
+  transcriber.on('close', (code: number, reason: string) => {
+   console.log('Session closed:', code, reason);
+   this.sessions.delete(sessionId);
+  });
+
+  transcriber.on('transcript', async (transcript: RealtimeTranscript) => {
+   if (!transcript.text) return;
+
+   const session = this.sessions.get(sessionId);
+   if (!session) return;
+
+   const chunk = {
+    timestamp: Date.now() - startTime,
+    audioKeys: session.audioKeys,
+    transcript: transcript.text,
+    isFinal: transcript.message_type === 'FinalTranscript',
+   };
+
+   session.chunks.push(chunk);
+
+   if (transcript.message_type === 'FinalTranscript') {
+    const summary = await this.assemblyAI.generateSummary(transcript.text);
+
+    await this.db.createJournalEntry(userId, {
+     content: transcript.text,
+     summary,
+     chunks: session.chunks,
+     audioKeys: session.audioKeys.map((ak) => ak.key).join(','),
+     createdAt: new Date().toISOString(),
+    });
    }
+  });
 
-   const pair = new WebSocketPair();
-   const [client, server] = Object.values(pair);
+  await transcriber.connect();
 
-   const assemblySocket = await this.assemblyAI.createRealtimeConnection();
-   const sessionId = crypto.randomUUID();
+  this.sessions.set(sessionId, {
+   transcriber,
+   chunks: [],
+   audioKeys: [],
+   startTime,
+  });
 
-   server.accept();
-
-   // Handle client messages (audio data)
-   server.addEventListener('message', async (msg: MessageEvent) => {
-    if (assemblySocket.readyState === WebSocket.OPEN) {
-     if (msg.data instanceof ArrayBuffer) {
-      // Save audio chunk and forward to AssemblyAI
-      const audioKey = await this.handleAudioChunk(userId, sessionId, msg.data);
-
-      // Add to session tracking
-      const session = this.sessions.get(sessionId);
-      if (session) {
-       session.audioKeys.push(audioKey);
-       this.sessions.set(sessionId, {
-        ...session,
-        audioKeys: session.audioKeys,
-       });
-      }
-
-      // Forward to AssemblyAI
-      assemblySocket.send(msg.data);
-     }
-    }
-   });
-
-   // Handle AssemblyAI responses
-   assemblySocket.addEventListener('message', (msg) => {
-    if (typeof msg.data === 'string') {
-     const data = JSON.parse(msg.data);
-     if (data.message_type === 'FinalTranscript') {
-      server.send(
-       JSON.stringify({
-        type: 'transcription',
-        text: data.text,
-        timestamp: new Date().toISOString(),
-       })
-      );
-     }
-    }
-   });
-
-   // Cleanup on close
-   server.addEventListener('close', async () => {
-    const session = this.sessions.get(sessionId);
-    if (session) {
-     // Store session metadata with audio keys
-     await this.db.createTranscriptionSession({
-      sessionId,
-      userId: session.userId,
-      audioKeys: session.audioKeys,
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-     });
-    }
-
-    assemblySocket.close();
-    this.sessions.delete(sessionId);
-   });
-
-   this.sessions.set(sessionId, {
-    client: server,
-    assembly: assemblySocket,
-    audioKeys: [],
-    userId,
-   });
-
-   return new Response(null, {
-    status: 101,
-    webSocket: client,
-   });
-  }
-
-  return new Response('Not found', { status: 404 });
- }
-
- private async handleAudioChunk(
-  userId: string,
-  sessionId: string,
-  audioData: ArrayBuffer
- ) {
-  const { key } = await this.storage.saveAudio(userId, audioData, sessionId);
-
-  const session = this.sessions.get(sessionId);
-  if (session) {
-   session.audioKeys.push(key);
-   this.sessions.set(sessionId, session);
-  }
-
-  return key;
+  return { sessionId, stream: transcriber.stream() };
  }
 }

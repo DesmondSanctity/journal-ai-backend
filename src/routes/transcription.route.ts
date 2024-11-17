@@ -10,11 +10,9 @@ export const createTranscriptionRouter = (
 
  // Rate limit: 100 requests per 15 minutes
  router.use('*', rateLimiter(100, 15 * 60 * 1000));
- router.use('*', authMiddleware);
+ // router.use('*', authMiddleware);
 
- router.get('/sessions/:userId', (c) => controller.getUserSessions(c));
- router.get('/sessions/:sessionId/audio', (c) => controller.getSessionAudio(c));
- router.get('/ws', (c) => controller.startWebSocket(c));
+ router.get('/sessions/:userId', (c) => controller.startTranscription(c));
 
  return router;
 };
