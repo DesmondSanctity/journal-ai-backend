@@ -5,8 +5,8 @@ import { AuthController } from '../controllers/auth.controller';
 import { JournalController } from '../controllers/journal.controller';
 import { TranscriptionController } from '../controllers/transcription.controller';
 import { DatabaseService } from '../services/db.service';
-import { TranscriptionSocketService } from '../worker';
 import { AssemblyAIService } from '../services/assemblyai.service';
+import { StorageService } from '../services/storage.service';
 
 export const createControllers = (env: Env) => {
  // Services
@@ -14,15 +14,12 @@ export const createControllers = (env: Env) => {
  const journalService = new JournalService(env);
  const assemblyAI = new AssemblyAIService(env);
  const dbService = new DatabaseService(env.JOURNAL_KV);
- const transcriptionService = new TranscriptionSocketService(
-  assemblyAI,
-  dbService
- );
+ const storageService = new StorageService(env.JOURNAL_AUDIO, env);
 
  // Controllers
  return {
   authController: new AuthController(authService),
   journalController: new JournalController(journalService),
-  transcriptionController: new TranscriptionController(transcriptionService),
+  transcriptionController: new TranscriptionController(assemblyAI, storageService, dbService),
  };
 };

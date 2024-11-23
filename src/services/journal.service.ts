@@ -20,7 +20,7 @@ export class JournalService {
  }
 
  async getEntries(userId: string) {
-  const entries = await this.db.getUserEntries(userId);
+  const entries = await this.db.getUserJournalEntries(userId);
   return entries.sort(
    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );

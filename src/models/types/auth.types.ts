@@ -20,12 +20,13 @@ export interface LoginResponse {
   id: string;
   email: string;
   name: string;
+  role: string;
+  createdAt: string;
  };
 }
 
 export interface RegisterResponse {
  user: {
-  id: string;
   email: string;
   name: string;
  };

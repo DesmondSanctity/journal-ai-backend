@@ -1,11 +1,16 @@
+import { Env } from '../config/env';
+
 export class StorageService {
- constructor(private readonly r2: R2Bucket) {}
+ constructor(private readonly r2: R2Bucket, private readonly env: Env) {}
 
  async saveAudio(userId: string, audioData: ArrayBuffer, sessionId: string) {
   const timestamp = new Date().toISOString();
-  const key = `audio/${userId}/${sessionId}/${timestamp}.wav`;
+  const key = `audio/${userId}/${timestamp}.webm`;
 
   await this.r2.put(key, audioData, {
+   httpMetadata: {
+    contentType: 'audio/webm',
+   },
    customMetadata: {
     userId,
     sessionId,
@@ -13,7 +18,11 @@ export class StorageService {
    },
   });
 
-  return { key, timestamp };
+  const url = `https://${this.env.R2_BUCKET_URL}/${key}`;
+
+  console.log('Audio URL:', url);
+
+  return { key, timestamp, url };
  }
 
  async getAudio(key: string) {
@@ -29,7 +38,7 @@ export class StorageService {
 
   return new Response(
    new Blob(audioBlobs.filter((blob): blob is ArrayBuffer => blob !== null)),
-   { headers: { 'Content-Type': 'audio/wav' } }
+   { headers: { 'Content-Type': 'audio/webm' } }
   );
  }
 }

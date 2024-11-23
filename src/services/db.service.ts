@@ -59,7 +59,7 @@ export class DatabaseService {
   return data;
  }
 
- async getUserEntries(userId: string) {
+ async getUserJournalEntries(userId: string) {
   const entries = await this.kv.list({ prefix: `journal:${userId}:` });
   const promises = entries.keys.map(({ name }) => this.kv.get(name));
   const results = await Promise.all(promises);

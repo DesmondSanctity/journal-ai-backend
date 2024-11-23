@@ -10,9 +10,12 @@ export const createTranscriptionRouter = (
 
  // Rate limit: 100 requests per 15 minutes
  router.use('*', rateLimiter(100, 15 * 60 * 1000));
- // router.use('*', authMiddleware);
+ router.use('*', authMiddleware);
 
- router.get('/sessions/:userId', (c) => controller.startTranscription(c));
+ // Add new audio transcription endpoint
+ router.post('/transcribe/:userId', (c) =>
+  controller.handleAudioTranscription(c)
+ );
 
  return router;
 };

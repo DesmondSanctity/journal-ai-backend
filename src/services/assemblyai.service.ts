@@ -1,23 +1,45 @@
 import { Env } from '../config/env';
 import { AssemblyAI, RealtimeTranscriber } from 'assemblyai';
+import { StorageService } from './storage.service';
+
+export interface TranscriptionChunk {
+ timestamp: number;
+ audioKeys?: { key: string; timestamp: number }[];
+ transcript: string;
+ isFinal: boolean;
+ startTimestamp: number;
+ endTimestamp: number;
+}
 
 export class AssemblyAIService {
- private readonly API_KEY: string;
  private readonly client: AssemblyAI;
-
+ private readonly storage: StorageService;
  constructor(env: Env) {
-  this.API_KEY = env.ASSEMBLY_AI_KEY;
   this.client = new AssemblyAI({
    apiKey: env.ASSEMBLY_AI_KEY,
   });
+  this.storage = new StorageService(env.JOURNAL_AUDIO, env);
  }
 
- async createRealtimeConnection(): Promise<RealtimeTranscriber> {
-  const transcriber = this.client.realtime.transcriber({
-   sampleRate: 16000,
+ async transcribeAudio(audioUrl: string) {
+  // Start transcription
+  const transcript = await this.client.transcripts.transcribe({
+   audio_url: audioUrl,
+   speaker_labels: true,
   });
 
-  return transcriber;
+  if (!transcript.text) {
+   throw new Error('Transcription failed');
+  }
+
+  // Generate summary using Lemur
+  const summary = await this.generateSummary(transcript.text);
+
+  return {
+   content: transcript.text,
+   summary,
+   createdAt: new Date().toISOString(),
+  };
  }
 
  async generateSummary(transcript: string): Promise<string> {

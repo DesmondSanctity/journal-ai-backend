@@ -9,7 +9,6 @@ import { Env } from './config/env';
 import { Controllers } from './types/controllers';
 import { Logger } from './utils/logger.util';
 import { Monitor } from './utils/monitor.util';
-import { TranscriptionSocketService } from './durable-objects/transcription.socket';
 
 interface Variables {
  controllers: Controllers;
@@ -21,6 +20,24 @@ const app = new Hono<{
  Bindings: Env;
  Variables: Variables;
 }>();
+
+// Global middleware
+app.use(
+ '*',
+ cors({
+  origin: '*',
+  allowHeaders: [
+   'X-Custom-Header',
+   'Upgrade-Insecure-Requests',
+   'Content-Type',
+   'Authorization',
+  ],
+  allowMethods: ['POST', 'GET', 'OPTIONS'],
+  exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
+  maxAge: 600,
+  credentials: true,
+ })
+);
 
 // Initialize core services
 app.use('*', async (c, next) => {
@@ -34,8 +51,6 @@ app.use('*', async (c, next) => {
  await next();
 });
 
-// Global middleware
-app.use('*', cors());
 app.use('*', honoLogger());
 app.use('*', (c, next) => errorHandler(c.get('logger'))(c, next));
 app.use('*', (c, next) => performanceMiddleware(c.get('monitor'))(c, next));
@@ -48,5 +63,4 @@ app.get('/', (c) =>
  c.json({ status: 'ok', timestamp: new Date().toISOString() })
 );
 
-export { TranscriptionSocketService };
 export default app;
