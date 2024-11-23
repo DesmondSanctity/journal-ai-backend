@@ -4,6 +4,7 @@ import { createMonitorRouter } from './monitor.route';
 import { createAuthRouter } from './auth.route';
 import { createJournalRouter } from './journal.route';
 import { createTranscriptionRouter } from './transcription.route';
+import { createAnalyticsRouter } from './analytics.route';
 import { Controllers } from '../types/controllers';
 import { Logger } from '../utils/logger.util';
 import { Monitor } from '../utils/monitor.util';
@@ -53,6 +54,16 @@ export const createApiRouter = () => {
    c.get('controllers').transcriptionController
   );
   return transcriptionRouter.fetch(newRequest, c.env);
+ });
+
+ router.use('/analytics/*', async (c) => {
+  const newUrl = new URL(c.req.url);
+  newUrl.pathname = newUrl.pathname.replace('/api/analytics', '');
+  const newRequest = new Request(newUrl, c.req.raw);
+  const analyticsRouter = createAnalyticsRouter(
+   c.get('controllers').analyticsController
+  );
+  return analyticsRouter.fetch(newRequest, c.env);
  });
 
  return router;

@@ -1,57 +1,37 @@
 import { Context } from 'hono';
-import { successResponse } from '../utils/response.util';
 import { AppError } from '../middleware/error.middleware';
-import {
- AssemblyAIService,
- TranscriptionChunk,
-} from '../services/assemblyai.service';
-import { StorageService } from '../services/storage.service';
+import { AssemblyAIService, TimedSegment } from '../services/assemblyai.service';
 import { DatabaseService } from '../services/db.service';
 
 interface TranscriptionResult {
  content: string;
+ tags: string[];
+ excerpt: string;
  summary: string;
+ segments: TimedSegment[];
+ duration: number;
  createdAt: string;
 }
 
 export class TranscriptionController {
  constructor(
   private assemblyAI: AssemblyAIService,
-  private storage: StorageService,
   private db: DatabaseService
  ) {}
 
  async handleAudioTranscription(c: Context) {
   const userId = c.req.param('userId');
-  const sessionId = crypto.randomUUID();
+  const { audioUrl } = await c.req.json();
 
-  if (!c.req.raw.body) {
-   return c.json(
-    {
-     success: false,
-     error: 'No audio provided',
-    },
-    400
-   );
+  console.log('URL:', audioUrl);
+  if (!audioUrl) {
+   throw new AppError(400, 'No audio provided', 'NO_AUDIO_PROVIDED');
   }
 
   try {
-   const audio = await c.req.raw.arrayBuffer();
-
-   // Store audio in R2
-   const { key, timestamp, url } = await this.storage.saveAudio(
-    userId,
-    audio,
-    sessionId
-   );
-
-   if (!url) {
-    throw new AppError(500, 'Failed to save audio', 'AUDIO_SAVE_FAILED');
-   }
-
    // Get transcription and summary
    const transcriptionResult = (await this.assemblyAI.transcribeAudio(
-    url
+    audioUrl
    )) as TranscriptionResult;
 
    console.log('Transcription Result:', transcriptionResult);
@@ -59,9 +39,13 @@ export class TranscriptionController {
    // Create journal entry
    const journalEntry = await this.db.createJournalEntry(userId, {
     content: transcriptionResult.content,
+    tags: transcriptionResult.tags,
+    excerpt: transcriptionResult.summary,
     summary: transcriptionResult.summary,
-    audioKey: key,
-    createdAt: timestamp,
+    segments: transcriptionResult.segments,
+    audioUrl: audioUrl,
+    duration: transcriptionResult.duration,
+    createdAt: transcriptionResult.createdAt,
    });
 
    return c.json({

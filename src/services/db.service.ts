@@ -8,11 +8,6 @@ export interface TranscriptionSession {
  createdAt: string;
 }
 
-interface TranscriptionData extends TranscriptionSession {
- transcript?: string;
- summary?: string;
-}
-
 interface User {
  id: string;
  email: string;
