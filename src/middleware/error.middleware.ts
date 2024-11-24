@@ -1,12 +1,13 @@
 import { Context, Next } from 'hono';
 import { Logger } from '../utils/logger.util';
 import { StatusCode } from 'hono/utils/http-status';
+import { errorResponse } from '../utils/response.util';
 
 export class AppError extends Error {
  constructor(
-  public statusCode: number,
+  public code: number,
   public message: string,
-  public code?: string
+  public status: string
  ) {
   super(message);
   this.name = 'AppError';
@@ -16,40 +17,26 @@ export class AppError extends Error {
 export const errorHandler =
  (logger: Logger) => async (c: Context, next: Next) => {
   try {
-   await next();
+   return await next();
   } catch (error) {
    if (error instanceof AppError) {
-    logger.error('Application error', error, {
-     code: error.code,
+    logger.error('Application error', {
+     message: error.message,
+     status: error.status,
      path: c.req.path,
     });
 
-    return c.json(
-     {
-      success: false,
-      error: {
-       code: error.code || 'ERROR',
-       message: error.message,
-      },
-     },
-     error.statusCode as StatusCode
-    );
+    c.status(error.code as StatusCode);
+    return c.json(errorResponse(error.code, error.message, error.status));
    }
 
-   logger.error('Unhandled error', error as Error, {
+   logger.error('Unhandled error', {
+    message: (error as Error).message,
     path: c.req.path,
     method: c.req.method,
    });
 
-   return c.json(
-    {
-     success: false,
-     error: {
-      code: 'INTERNAL_ERROR',
-      message: 'An unexpected error occurred',
-     },
-    },
-    500
-   );
+   c.status(500);
+   return  c.json(errorResponse(500, 'An unexpected error occurred', 'INTERNAL_ERROR'));
   }
  };

@@ -52,4 +52,10 @@ export class DatabaseService {
    .map((entry) => (entry ? JSON.parse(entry) : null))
    .filter(Boolean);
  }
+
+ async deleteJournalEntry(userId: string, entryId: string) {
+  const key = `journal:${userId}:${entryId}`;
+  await this.kv.delete(key);
+  return true;
+ }
 }

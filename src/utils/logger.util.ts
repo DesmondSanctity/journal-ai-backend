@@ -1,4 +1,12 @@
-import { Env } from "../config/env";
+import { Env } from '../config/env';
+
+export interface LogMetadata {
+ status?: string;
+ code?: number;
+ path?: string;
+ method?: string;
+ message?: string;
+}
 
 export class Logger {
  constructor(private env: Env) {}
@@ -13,13 +21,9 @@ export class Logger {
   });
  }
 
- error(message: string, error?: Error, meta?: any) {
+ error(message: string, meta: LogMetadata) {
   console.error(
    this.formatMessage('error', message, {
-    error: {
-     message: error?.message,
-     stack: error?.stack,
-    },
     ...meta,
    })
   );

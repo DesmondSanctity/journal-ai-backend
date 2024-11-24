@@ -1,5 +1,6 @@
 import { Context } from 'hono';
 import { DatabaseService } from '../services/db.service';
+import { errorResponse, successResponse } from '../utils/response.util';
 
 interface AnalyticsResponse {
  totalTime: number;
@@ -42,21 +43,28 @@ export class AnalyticsController {
   const userId = c.req.param('userId');
   const entries = await this.db.getUserJournalEntries(userId);
 
-  const analytics: AnalyticsResponse = {
-   totalTime: entries.reduce((acc, entry) => acc + entry.duration, 0),
-   totalEntries: entries.length,
-   averageDuration:
-    entries.reduce((acc, entry) => acc + entry.duration, 0) / entries.length,
-   topTags: this.getTopTags(entries),
-   topTopics: this.getTopTopics(entries),
-   wordFrequency: this.getWordFrequency(entries),
-   sentimentData: this.getSentimentAnalysis(entries),
-  };
+  try {
+   const analytics: AnalyticsResponse = {
+    totalTime: entries.reduce((acc, entry) => acc + entry.duration, 0),
+    totalEntries: entries.length,
+    averageDuration:
+     entries.reduce((acc, entry) => acc + entry.duration, 0) / entries.length,
+    topTags: this.getTopTags(entries),
+    topTopics: this.getTopTopics(entries),
+    wordFrequency: this.getWordFrequency(entries),
+    sentimentData: this.getSentimentAnalysis(entries),
+   };
 
-  return c.json({
-   success: true,
-   data: analytics,
-  });
+   return c.json(successResponse(analytics));
+  } catch (error) {
+   return c.json(
+    errorResponse(
+     500,
+     'Failed to fetch journal analytics',
+     'ANALYTICS_FETCH_FAILED'
+    )
+   );
+  }
  }
 
  private getTopTags(

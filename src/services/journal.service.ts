@@ -25,4 +25,11 @@ export class JournalService {
    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
  }
+
+ async deleteEntry(userId: string, entryId: string) {
+  // Delete from KV
+  await this.db.deleteJournalEntry(userId, entryId);
+
+  return { success: true };
+ }
 }

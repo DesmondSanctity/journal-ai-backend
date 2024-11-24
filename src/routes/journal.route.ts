@@ -1,7 +1,5 @@
 import { Hono } from 'hono';
-import { JournalController } from '../controllers/journal.controller';
-import { validateRequest } from '../utils/validation.util';
-import { journalEntrySchema } from '../models/types/journal.types';
+import { JournalController } from '../controllers/journal.controller';;
 import { authMiddleware } from '../middleware/auth.middleware';
 import { rateLimiter } from '../middleware/rate-limit.middleware';
 
@@ -13,9 +11,8 @@ export const createJournalRouter = (controller: JournalController) => {
  router.use('*', authMiddleware);
 
  router.get('/', (c) => controller.getEntries(c));
- router.post('/', validateRequest(journalEntrySchema), (c) =>
-  controller.createEntry(c)
- );
+
+ router.delete('/:entryId', (c) => controller.deleteEntry(c));
 
  return router;
 };

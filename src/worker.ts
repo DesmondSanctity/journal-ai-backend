@@ -21,6 +21,21 @@ const app = new Hono<{
  Variables: Variables;
 }>();
 
+// Initialize core services
+app.use('*', async (c, next) => {
+ const logger = new Logger(c.env);
+ const monitor = new Monitor();
+ const controllers = createControllers(c.env);
+
+ c.set('logger', logger);
+ c.set('monitor', monitor);
+ c.set('controllers', controllers);
+ await next();
+});
+
+// Error handling
+app.use('*', (c, next) => errorHandler(c.get('logger'))(c, next));
+
 // Global middleware
 app.use(
  '*',
@@ -39,20 +54,7 @@ app.use(
  })
 );
 
-// Initialize core services
-app.use('*', async (c, next) => {
- const logger = new Logger(c.env);
- const monitor = new Monitor();
- const controllers = createControllers(c.env);
-
- c.set('logger', logger);
- c.set('monitor', monitor);
- c.set('controllers', controllers);
- await next();
-});
-
 app.use('*', honoLogger());
-app.use('*', (c, next) => errorHandler(c.get('logger'))(c, next));
 app.use('*', (c, next) => performanceMiddleware(c.get('monitor'))(c, next));
 
 // Mount all routes

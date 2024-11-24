@@ -2,7 +2,8 @@ export interface ApiResponse<T> {
  success: boolean;
  data?: T;
  error?: {
-  code: string;
+  code: number;
+  status: string;
   message: string;
  };
  meta?: {
@@ -22,9 +23,10 @@ export const successResponse = <T>(
 });
 
 export const errorResponse = (
- code: string,
- message: string
+ code: number,
+ message: string,
+ status: string
 ): ApiResponse<never> => ({
  success: false,
- error: { code, message },
+ error: { code, message, status },
 });

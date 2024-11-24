@@ -5,8 +5,10 @@ import {
  TimedSegment,
 } from '../services/assemblyai.service';
 import { DatabaseService } from '../services/db.service';
+import { errorResponse, successResponse } from '../utils/response.util';
 
 interface TranscriptionResult {
+ title: string;
  content: string;
  tags: string[];
  excerpt: string;
@@ -32,9 +34,8 @@ export class TranscriptionController {
   const userId = c.req.param('userId');
   const { audioUrl } = await c.req.json();
 
-  console.log('URL:', audioUrl);
   if (!audioUrl) {
-   throw new AppError(400, 'No audio provided', 'NO_AUDIO_PROVIDED');
+   return c.json(errorResponse(400, 'No audio provided', 'NO_AUDIO_PROVIDED'));
   }
 
   try {
@@ -43,13 +44,12 @@ export class TranscriptionController {
     audioUrl
    )) as TranscriptionResult;
 
-   console.log('Transcription Result:', transcriptionResult);
-
    // Create journal entry
    const journalEntry = await this.db.createJournalEntry(userId, {
+    title: transcriptionResult.title,
     content: transcriptionResult.content,
     tags: transcriptionResult.tags,
-    excerpt: transcriptionResult.summary,
+    excerpt: transcriptionResult.excerpt,
     summary: transcriptionResult.summary,
     segments: transcriptionResult.segments,
     sentiments: transcriptionResult.sentiments,
@@ -58,15 +58,14 @@ export class TranscriptionController {
     createdAt: transcriptionResult.createdAt,
    });
 
-   return c.json({
-    success: true,
-    data: journalEntry,
-   });
+   return c.json(successResponse(journalEntry));
   } catch (error) {
-   throw new AppError(
-    503,
-    'Failed to run transcription',
-    'TRANSCRIPTION_START_FAILED'
+   return c.json(
+    errorResponse(
+     503,
+     'Failed to run transcription',
+     'TRANSCRIPTION_START_FAILED'
+    )
    );
   }
  }

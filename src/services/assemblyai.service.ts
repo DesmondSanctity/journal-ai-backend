@@ -15,22 +15,21 @@ export class AssemblyAIService {
  }
 
  async transcribeAudio(audioUrl: string) {
-  console.log('AssemblyAI service initialized');
   // Start transcription
   const transcript = await this.client.transcripts.transcribe({
    audio_url: audioUrl,
    sentiment_analysis: true,
-   auto_chapters: true,
   });
-
-  console.log('Transcription:', transcript);
 
   if (!transcript.text) {
    throw new Error('Transcription failed');
   }
 
-  // Generate title
-  const title = await this.generateTitle(transcript.text, transcript.id);
+  // Generate title and excerpt
+  const { title, excerpt } = await this.generateTitleAndExcerpt(
+   transcript.text,
+   transcript.id
+  );
   // Generate summary using Lemur
   const summary = await this.generateSummary(transcript.text);
   // Get tags for entry
@@ -41,7 +40,7 @@ export class AssemblyAIService {
     title: title,
     content: transcript.text,
     tags,
-    excerpt: transcript.summary,
+    excerpt: excerpt,
     summary: summary,
     segments: [],
     sentiments: this.organizeSentimentSegments(
@@ -57,7 +56,7 @@ export class AssemblyAIService {
     title: title,
     content: transcript.text,
     tags,
-    excerpt: transcript.summary,
+    excerpt: excerpt,
     summary: summary,
     segments: this.organizeByTimeSegments(transcript.chapters),
     sentiments: [],
@@ -75,7 +74,7 @@ export class AssemblyAIService {
    title: title,
    content: transcript.text,
    tags,
-   excerpt: transcript.summary,
+   excerpt: excerpt,
    summary,
    segments: segments,
    sentiments: sentiments,
@@ -89,7 +88,7 @@ export class AssemblyAIService {
    final_model: 'anthropic/claude-3-5-sonnet',
    max_output_size: 300,
    temperature: 0,
-   answer_format: 'TLDR',
+   answer_format: 'bullet points',
    input_text: transcript,
   });
 
@@ -112,29 +111,51 @@ export class AssemblyAIService {
   return tags;
  }
 
- async generateTitle(
+ async generateTitleAndExcerpt(
   transcript: string,
   transcriptId: string
- ): Promise<string> {
-  const prompt = `Create a title for this journal entry: ${transcript}. Be precise, conscise, and accurate as possible.`;
-  const result = await this.client.lemur.task({
+ ): Promise<{ excerpt: string; title: string }> {
+  const titlePrompt = `Create a title for this journal entry: ${transcript}. Be precise, conscise, and accurate as possible.`;
+  const excerptPrompt = `Create an excerpt(one liner) for this journal entry: ${transcript}. Be precise, conscise, and accurate as possible.`;
+
+  const title = await this.client.lemur.task({
    transcript_ids: [transcriptId],
-   prompt,
+   prompt: titlePrompt,
    final_model: 'anthropic/claude-3-5-sonnet',
   });
-  return result.response;
- }
 
- private organizeByTimeSegments(chapters: any[]): TimedSegment[] {
+  const excerpt = await this.client.lemur.task({
+   transcript_ids: [transcriptId],
+   prompt: excerptPrompt,
+   final_model: 'anthropic/claude-3-5-sonnet',
+  });
+
+  return { excerpt: excerpt.response, title: title.response };
+ }
+ private organizeByTimeSegments(words: any[]): TimedSegment[] {
   const segments: TimedSegment[] = [];
-  for (const chapter of chapters) {
-   segments.push({
-    timestamp: `${this.formatTimestamp(
-     chapter.start
-    )} -  ${this.formatTimestamp(chapter.end)}`,
-    text: chapter.headline,
-   });
-  }
+  const INTERVAL_MS = 10000; // 10 seconds
+
+  let currentText = '';
+  let segmentStart = words[0]?.start || 0;
+  let currentTime = segmentStart;
+
+  words.forEach((word, index) => {
+   if (word.start >= currentTime + INTERVAL_MS || index === words.length - 1) {
+    segments.push({
+     timestamp: `${this.formatTimestamp(segmentStart)} - ${this.formatTimestamp(
+      word.end
+     )}`,
+     text: currentText.trim(),
+    });
+
+    currentText = word.text;
+    segmentStart = word.start;
+    currentTime = word.start;
+   } else {
+    currentText += ' ' + word.text;
+   }
+  });
 
   return segments;
  }
