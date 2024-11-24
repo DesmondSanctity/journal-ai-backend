@@ -1,6 +1,9 @@
 import { Context } from 'hono';
 import { AppError } from '../middleware/error.middleware';
-import { AssemblyAIService, TimedSegment } from '../services/assemblyai.service';
+import {
+ AssemblyAIService,
+ TimedSegment,
+} from '../services/assemblyai.service';
 import { DatabaseService } from '../services/db.service';
 
 interface TranscriptionResult {
@@ -9,6 +12,12 @@ interface TranscriptionResult {
  excerpt: string;
  summary: string;
  segments: TimedSegment[];
+ sentiments: {
+  sentiment: string;
+  text: string;
+  confidence: number;
+  timestamp: string;
+ }[];
  duration: number;
  createdAt: string;
 }
@@ -43,6 +52,7 @@ export class TranscriptionController {
     excerpt: transcriptionResult.summary,
     summary: transcriptionResult.summary,
     segments: transcriptionResult.segments,
+    sentiments: transcriptionResult.sentiments,
     audioUrl: audioUrl,
     duration: transcriptionResult.duration,
     createdAt: transcriptionResult.createdAt,

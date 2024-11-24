@@ -15,14 +15,12 @@ export class AssemblyAIService {
  }
 
  async transcribeAudio(audioUrl: string) {
+  console.log('AssemblyAI service initialized');
   // Start transcription
   const transcript = await this.client.transcripts.transcribe({
    audio_url: audioUrl,
    sentiment_analysis: true,
    auto_chapters: true,
-   summarization: true,
-   summary_model: 'catchy',
-   summary_type: 'headline',
   });
 
   console.log('Transcription:', transcript);
@@ -31,41 +29,60 @@ export class AssemblyAIService {
    throw new Error('Transcription failed');
   }
 
+  // Generate title
+  const title = await this.generateTitle(transcript.text, transcript.id);
   // Generate summary using Lemur
   const summary = await this.generateSummary(transcript.text);
-
-  console.log('Summary:', summary);
-
   // Get tags for entry
   const tags = await this.generateTags(transcript.text, transcript.id);
 
-  if (!transcript.chapters) {
+  if (!transcript.chapters || !transcript.sentiment_analysis_results) {
    return {
+    title: title,
     content: transcript.text,
     tags,
     excerpt: transcript.summary,
     summary: summary,
     segments: [],
+    sentiments: this.organizeSentimentSegments(
+     transcript.sentiment_analysis_results || []
+    ),
     duration: transcript.audio_duration,
     createdAt: new Date().toISOString(),
    };
   }
-  // Get segments and speakers
+
+  if (!transcript.sentiment_analysis_results) {
+   return {
+    title: title,
+    content: transcript.text,
+    tags,
+    excerpt: transcript.summary,
+    summary: summary,
+    segments: this.organizeByTimeSegments(transcript.chapters),
+    sentiments: [],
+    duration: transcript.audio_duration,
+    createdAt: new Date().toISOString(),
+   };
+  }
+
+  const sentiments = this.organizeSentimentSegments(
+   transcript.sentiment_analysis_results || []
+  );
   const segments = this.organizeByTimeSegments(transcript.chapters);
 
-  console.log('Summary:', segments);
-
   return {
+   title: title,
    content: transcript.text,
    tags,
-   exceerpt: transcript.summary,
+   excerpt: transcript.summary,
    summary,
-   segments,
+   segments: segments,
+   sentiments: sentiments,
    duration: transcript.audio_duration,
    createdAt: new Date().toISOString(),
   };
  }
-
  async generateSummary(transcript: string): Promise<string> {
   const result = await this.client.lemur.summary({
    context: 'This is a personal journal entry.',
@@ -83,7 +100,7 @@ export class AssemblyAIService {
   transcript: string,
   transcriptId: string
  ): Promise<string[]> {
-  const prompt = `Generate a list of tags for this journal entry: ${transcript}`;
+  const prompt = `Create a list of two tags for this journal entry: ${transcript}. Retrn the tags as a comma separated list. The tags should be related to the content of the journal entry and arranged in order of importance.`;
   const result = await this.client.lemur.task({
    transcript_ids: [transcriptId],
    prompt,
@@ -95,11 +112,26 @@ export class AssemblyAIService {
   return tags;
  }
 
+ async generateTitle(
+  transcript: string,
+  transcriptId: string
+ ): Promise<string> {
+  const prompt = `Create a title for this journal entry: ${transcript}. Be precise, conscise, and accurate as possible.`;
+  const result = await this.client.lemur.task({
+   transcript_ids: [transcriptId],
+   prompt,
+   final_model: 'anthropic/claude-3-5-sonnet',
+  });
+  return result.response;
+ }
+
  private organizeByTimeSegments(chapters: any[]): TimedSegment[] {
   const segments: TimedSegment[] = [];
   for (const chapter of chapters) {
    segments.push({
-    timestamp: this.formatTimestamp(chapter.start, chapter.end),
+    timestamp: `${this.formatTimestamp(
+     chapter.start
+    )} -  ${this.formatTimestamp(chapter.end)}`,
     text: chapter.headline,
    });
   }
@@ -107,7 +139,22 @@ export class AssemblyAIService {
   return segments;
  }
 
- private formatTimestamp(start: number, end: number): string {
-  return `${start} - ${end}`;
+ private organizeSentimentSegments(sentimentAnalysisResults: any[]) {
+  const sentimentSegments = sentimentAnalysisResults.map((segment: any) => ({
+   sentiment: segment.sentiment,
+   text: segment.text,
+   confidence: segment.confidence,
+   timestamp: this.formatTimestamp(segment.start),
+  }));
+
+  return sentimentSegments;
+ }
+
+ private formatTimestamp(ms: number): string {
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
+  return `${minutes.toString().padStart(2, '0')}:${seconds
+   .toString()
+   .padStart(2, '0')}`;
  }
 }

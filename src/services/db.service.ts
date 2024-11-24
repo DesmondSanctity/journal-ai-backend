@@ -1,13 +1,3 @@
-import { Env } from '../config/env';
-
-export interface TranscriptionSession {
- sessionId: string;
- userId: string;
- audioKeys: string[];
- completedAt: string;
- createdAt: string;
-}
-
 interface User {
  id: string;
  email: string;
@@ -61,36 +51,5 @@ export class DatabaseService {
   return results
    .map((entry) => (entry ? JSON.parse(entry) : null))
    .filter(Boolean);
- }
-
- async createTranscriptionSession(session: TranscriptionSession) {
-  const key = `transcription:${session.userId}:${session.sessionId}`;
-  await this.kv.put(
-   key,
-   JSON.stringify({
-    ...session,
-   })
-  );
-  return session;
- }
-
- async getUserTranscriptions(userId: string) {
-  const sessions = await this.kv.list({ prefix: `transcription:${userId}:` });
-  const promises = sessions.keys.map(({ name }) => this.kv.get(name));
-  const results = await Promise.all(promises);
-  return results
-   .map((session) => (session ? JSON.parse(session) : null))
-   .filter(Boolean);
- }
-
- async getTranscriptionSession(
-  sessionId: string,
-  userId: string
- ): Promise<TranscriptionSession | null> {
-  const sessions = await this.kv.list({
-   prefix: `transcription:${userId}:${sessionId}`,
-  });
-  const session = await this.kv.get(sessions.keys[0].name);
-  return session ? JSON.parse(session) : null;
  }
 }

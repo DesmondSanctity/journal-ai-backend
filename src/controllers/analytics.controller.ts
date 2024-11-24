@@ -11,6 +11,14 @@ interface AnalyticsResponse {
  sentimentData: Array<{ sentiment: string; count: number }>;
 }
 
+export interface SentimentSegment {
+ sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+ text: string;
+ start: number;
+ end: number;
+ confidence: number;
+}
+
 interface JournalEntry {
  id: string;
  title: string;
@@ -21,11 +29,11 @@ interface JournalEntry {
   timestamp: string;
   text: string;
  }>;
+ sentiments: SentimentSegment[];
  duration: number;
  audioUrl: string;
  createdAt: string;
 }
-
 
 export class AnalyticsController {
  constructor(private db: DatabaseService) {}
@@ -104,35 +112,19 @@ export class AnalyticsController {
  private getSentimentAnalysis(
   entries: JournalEntry[]
  ): Array<{ sentiment: string; count: number }> {
-  const sentiments = ['Positive', 'Neutral', 'Negative'];
-  const sentimentCount = new Map<string, number>();
+  const sentimentCounts = entries.reduce((acc, entry) => {
+   entry.sentiments.forEach((segment) => {
+    const sentiment = segment.sentiment;
+    acc[sentiment] = (acc[sentiment] || 0) + 1;
+   });
+   return acc;
+  }, {} as Record<string, number>);
 
-  entries.forEach((entry) => {
-   const sentiment = this.analyzeSentiment(entry.content);
-   sentimentCount.set(sentiment, (sentimentCount.get(sentiment) || 0) + 1);
-  });
-
-  return sentiments.map((sentiment) => ({
-   sentiment,
-   count: sentimentCount.get(sentiment) || 0,
-  }));
- }
-
- private analyzeSentiment(text: string): string {
-  // Basic sentiment analysis - can be enhanced with NLP libraries
-  const positiveWords = ['happy', 'good', 'great', 'excellent', 'amazing'];
-  const negativeWords = ['sad', 'bad', 'terrible', 'awful', 'horrible'];
-
-  const words = text.toLowerCase().split(/\s+/);
-  const positiveCount = words.filter((word) =>
-   positiveWords.includes(word)
-  ).length;
-  const negativeCount = words.filter((word) =>
-   negativeWords.includes(word)
-  ).length;
-
-  if (positiveCount > negativeCount) return 'Positive';
-  if (negativeCount > positiveCount) return 'Negative';
-  return 'Neutral';
+  return Object.entries(sentimentCounts)
+   .map(([sentiment, count]) => ({
+    sentiment,
+    count,
+   }))
+   .sort((a, b) => b.count - a.count);
  }
 }
