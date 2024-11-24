@@ -17,6 +17,7 @@ export class AuthController {
    const result = await this.authService.login(input);
    return c.json(successResponse(result));
   } catch (error) {
+   c.status(401);
    return c.json(errorResponse(401, 'Invalid credentials', 'AUTH_FAILED'));
   }
  }
@@ -31,6 +32,7 @@ export class AuthController {
    const result = await this.authService.register(input);
    return c.json(successResponse(result));
   } catch (error) {
+   c.status(500);
    return c.json(errorResponse(500, 'Registration failed', 'REGISTRATION_FAILED'));
   }
  }

@@ -10,13 +10,15 @@ export class JournalController {
  async getEntries(c: Context) {
   const userId = c.get('user').userId;
   if (!userId) {
-   throw new AppError(401, 'User not authenticated', 'AUTH_REQUIRED');
+   c.status(401);
+   return c.json(errorResponse(401, 'User not authenticated', 'AUTH_REQUIRED'));
   }
 
   try {
    const entries = await this.journalService.getEntries(userId);
    return c.json(successResponse(entries));
   } catch (error) {
+   c.status(500);
    return c.json(
     errorResponse(
      500,
@@ -42,6 +44,7 @@ export class JournalController {
    await this.journalService.deleteEntry(userId, entryId);
    return c.json(successResponse({ success: true }));
   } catch (error) {
+   c.status(500);
    return c.json(
     errorResponse(500, 'Failed to delete journal entry', 'ENTRY_DELETE_FAILED')
    );

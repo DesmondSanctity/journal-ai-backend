@@ -47,7 +47,7 @@ app.use(
    'Content-Type',
    'Authorization',
   ],
-  allowMethods: ['POST', 'GET', 'OPTIONS'],
+  allowMethods: ['POST', 'GET', 'OPTIONS', 'PUT', 'DELETE'],
   exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
   maxAge: 600,
   credentials: true,

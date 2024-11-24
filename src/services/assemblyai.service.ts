@@ -35,7 +35,7 @@ export class AssemblyAIService {
   // Get tags for entry
   const tags = await this.generateTags(transcript.text, transcript.id);
 
-  if (!transcript.chapters || !transcript.sentiment_analysis_results) {
+  if (!transcript.words) {
    return {
     title: title,
     content: transcript.text,
@@ -58,7 +58,7 @@ export class AssemblyAIService {
     tags,
     excerpt: excerpt,
     summary: summary,
-    segments: this.organizeByTimeSegments(transcript.chapters),
+    segments: this.organizeByTimeSegments(transcript.words) || [],
     sentiments: [],
     duration: transcript.audio_duration,
     createdAt: new Date().toISOString(),
@@ -68,7 +68,7 @@ export class AssemblyAIService {
   const sentiments = this.organizeSentimentSegments(
    transcript.sentiment_analysis_results || []
   );
-  const segments = this.organizeByTimeSegments(transcript.chapters);
+  const segments = this.organizeByTimeSegments(transcript.words);
 
   return {
    title: title,
@@ -99,7 +99,7 @@ export class AssemblyAIService {
   transcript: string,
   transcriptId: string
  ): Promise<string[]> {
-  const prompt = `Create a list of two tags for this journal entry: ${transcript}. Retrn the tags as a comma separated list. The tags should be related to the content of the journal entry and arranged in order of importance.`;
+  const prompt = `Create a list of two tags for this journal entry: ${transcript}. Retrn the tags ONLY as a comma separated list. The tags should be related to the content of the journal entry and arranged in order of importance.`;
   const result = await this.client.lemur.task({
    transcript_ids: [transcriptId],
    prompt,
@@ -115,8 +115,8 @@ export class AssemblyAIService {
   transcript: string,
   transcriptId: string
  ): Promise<{ excerpt: string; title: string }> {
-  const titlePrompt = `Create a title for this journal entry: ${transcript}. Be precise, conscise, and accurate as possible.`;
-  const excerptPrompt = `Create an excerpt(one liner) for this journal entry: ${transcript}. Be precise, conscise, and accurate as possible.`;
+  const titlePrompt = `Create a three words title for this journal entry: ${transcript}. Be precise, not long, conscise, and accurate as possible. Return the title ONLY.`;
+  const excerptPrompt = `Create an excerpt(one liner) for this journal entry: ${transcript}. Be precise, conscise, and accurate as possible. Return the excerpt ONLY.`;
 
   const title = await this.client.lemur.task({
    transcript_ids: [transcriptId],

@@ -6,7 +6,12 @@ export async function authMiddleware(c: Context, next: Next) {
  const authHeader = c.req.header('Authorization');
 
  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-  throw new AppError(401, 'Unauthorized', 'AUTH_REQUIRED');
+  c.status(401);
+  return c.json({
+   status: 'error',
+   message: 'Unauthorized',
+   code: 'AUTH_REQUIRED',
+  });
  }
 
  const token = authHeader.split(' ')[1];
@@ -16,6 +21,11 @@ export async function authMiddleware(c: Context, next: Next) {
   c.set('user', payload);
   await next();
  } catch (error) {
-  throw new AppError(401, 'Invalid token', 'INVALID_TOKEN');
+  c.status(401);
+  return c.json({
+   status: 'error',
+   message: 'Invalid token',
+   code: 'INVALID_TOKEN',
+  });
  }
 }

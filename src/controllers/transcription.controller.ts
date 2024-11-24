@@ -32,7 +32,7 @@ export class TranscriptionController {
 
  async handleAudioTranscription(c: Context) {
   const userId = c.req.param('userId');
-  const { audioUrl } = await c.req.json();
+  const { audioUrl, publicId } = await c.req.json();
 
   if (!audioUrl) {
    return c.json(errorResponse(400, 'No audio provided', 'NO_AUDIO_PROVIDED'));
@@ -54,6 +54,7 @@ export class TranscriptionController {
     segments: transcriptionResult.segments,
     sentiments: transcriptionResult.sentiments,
     audioUrl: audioUrl,
+    publicId: publicId,
     duration: transcriptionResult.duration,
     createdAt: transcriptionResult.createdAt,
    });
