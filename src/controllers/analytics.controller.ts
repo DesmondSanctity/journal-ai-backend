@@ -76,10 +76,20 @@ export class AnalyticsController {
   return c.json(successResponse(analytics));
  }
 
- private formatDuration(minutes: number): string {
+ private formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
-  return minutes >= 60 ? `${hours} hours` : `${mins} mins`;
+
+  const remainingMinutes = minutes % 60;
+  const remainingSeconds = seconds % 60;
+
+  if (hours > 0) {
+   return `${hours.toFixed(1)} hours`;
+  }
+  if (minutes > 0) {
+   return `${remainingMinutes.toFixed(1)} mins`;
+  }
+  return `${remainingSeconds} secs`;
  }
 
  private getActivityData(
