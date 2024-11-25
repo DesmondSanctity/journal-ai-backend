@@ -8,7 +8,7 @@ ENVIRONMENT = "production"
 
 [[kv_namespaces]]
 binding = "JOURNAL_KV"
-id = ""
+id = "63119c27cfda489e9009ac528c995347"
 
 [[r2_buckets]]
 binding = 'JOURNAL_AUDIO'
